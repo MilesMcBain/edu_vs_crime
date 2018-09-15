@@ -1,0 +1,94 @@
+
+```{r dependencies}
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(skimr)
+```
+
+## Read
+```{r load}
+august_enrollments <-
+  read_excel("./data/august-enrolments-by-school.xlsx",
+             sheet = 3,
+             skip = 13)
+
+august_enrollments
+```
+
+The column names have annoying spaces. I'm just looking at secondary schools.
+
+## Subset
+```{r subset}
+august_enrollments_hs <-
+  august_enrollments %>%
+  janitor::clean_names() %>%
+  filter(school_category == "Secondary",
+         school_type != "Special School")
+
+```
+
+## Munge
+
+```{r munge}
+august_cohorts_hs <-
+  august_enrollments_hs %>%
+  extract("year_level",
+          into = "grade",
+          regex = "([0-9]+)",
+          convert = TRUE,
+          remove = FALSE
+          ) %>%
+  mutate(cohort = collection_year - grade)
+
+hs_cohorts_aug <-
+  august_cohorts_hs %>%
+  group_by(cohort) %>%
+  filter(min(collection_year) <=  2014)
+
+skim(hs_cohorts_aug)
+```
+There's some grades that are NA. Need to go back to `year_level`.
+
+```{r}
+august_enrollments_hs %>%
+  pull(year_level) %>%
+  unique()
+
+
+hs_cohorts_aug <-
+  august_cohorts_hs %>%
+  filter(year_level != "Special") %>%
+  group_by(cohort) %>%
+  filter(min(collection_year) <=  2014,
+         max(grade) == 12,
+         min(grade) == 8) %>%
+  ungroup()
+
+skim(hs_cohorts_aug)
+ ```
+
+Got rid of the NA.
+
+## Cohort analysis
+We have one complete cohort "2005" starting in year 8 in 2013 and finishing yr
+12 in 2017. A quick way to 'normalise' each cohort is to look at the enrolments
+for each year minus the enrolments in yr 8.
+
+### Normalise
+
+```{r}
+starting_enrolments <-
+  hs_cohorts_aug %>%
+  filter(grade == 8) %>%
+  rename(initial_enrolments = ft_enrolments) %>%
+  select(school_name, cohort, initial_enrolments)
+
+hs_cohorts_aug %>%
+  left_join(starting_enrolments) %>%
+  mutate(enrolments_diff = ft_enrolments - initial_enrolments) %>%
+  ggplot(mapping = aes(x = grade, y = enrolments_diff)) +
+  geom_line(aes(group = school_name,
+                colour = region))
+```
+
