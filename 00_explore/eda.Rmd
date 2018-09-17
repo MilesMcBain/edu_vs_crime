@@ -92,3 +92,18 @@ hs_cohorts_aug %>%
                 colour = region))
 ```
 
+## Geocoding
+
+Using `opencage`: https://github.com/ropensci/opencage
+
+```{r}
+library(opencage)
+
+## Places
+schools <- paste(unique(hs_cohorts_aug$school_name), "QLD")
+
+geocode_results <-
+  map(schools, ~opencage_forward(placename = ., countrycode = "AU"))
+
+write_rds(geocode_results, "./data/geocode_results.Rds")
+```
