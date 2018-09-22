@@ -89,7 +89,7 @@ starting_enrolments <-
 hs_cohorts_aug <-
   hs_cohorts_aug %>%
   left_join(starting_enrolments) %>%
-  mutate(enrolments_diff = ft_enrolments - initial_enrolments)
+  mutate(enrolments_diff = ft_enrolments / initial_enrolments)
 
 hs_cohorts_aug %>%
   ggplot(mapping = aes(x = grade, y = enrolments_diff)) +
@@ -120,11 +120,11 @@ qld_schools <-
              sheet = 2,
              skip = 10,
              guess_max = 1500
-             ) %>%
-  clean_names() %>%
+             ) %
+         n_names() %>%
   select(school_name,
          school_code,
-         federal_electorate,
+        federal_electorate,
          state_electorate,
          latitude,
          longitude)
@@ -168,5 +168,31 @@ leaflet(data = hs_cohorts_aug_12prop) %>%
   addLegend("bottomright",
             pal = circle_palette,
             values = ~prop_12
+          )
+```
+copy-pasta for yr 10 cohort.
+```{r}
+hs_cohorts_aug_10prop <- 
+  hs_cohorts_aug %>%
+  filter(grade == 10) %>%
+  mutate(prop_10 = ft_enrolments/initial_enrolments) %>%
+  rename(lat = latitude, lng = longitude) %>%
+  mutate(lat = as.numeric(lat), lng = as.numeric(lng))
+
+circle_palette <-
+  colorNumeric(scico(500, palette = "vik"),
+               hs_cohorts_aug_10prop$prop_10,
+               reverse = TRUE)
+
+
+leaflet(data = hs_cohorts_aug_10prop) %>%
+  addTiles() %>%
+  addCircleMarkers(color = ~circle_palette(prop_10),
+                   stroke = FALSE,
+                   fillOpacity = 0.6
+                   ) %>%
+  addLegend("bottomright",
+            pal = circle_palette,
+            values = ~prop_10
           )
 ```
