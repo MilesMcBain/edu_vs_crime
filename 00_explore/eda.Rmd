@@ -4,6 +4,8 @@ library(tidyverse)
 library(readxl)
 library(janitor)
 library(skimr)
+library(leaflet)
+library(scico)
 ```
 
 ## Read
@@ -59,7 +61,7 @@ august_enrollments_hs %>%
 hs_cohorts_aug <-
   august_cohorts_hs %>%
   filter(year_level != "Special") %>%
-  group_by(cohort) %>%
+  group_by(cohort, school_name) %>%
   filter(min(collection_year) <=  2014,
          max(grade) == 12,
          min(grade) == 8) %>%
@@ -84,9 +86,12 @@ starting_enrolments <-
   rename(initial_enrolments = ft_enrolments) %>%
   select(school_name, cohort, initial_enrolments)
 
-hs_cohorts_aug %>%
+hs_cohorts_aug <-
+  hs_cohorts_aug %>%
   left_join(starting_enrolments) %>%
-  mutate(enrolments_diff = ft_enrolments - initial_enrolments) %>%
+  mutate(enrolments_diff = ft_enrolments - initial_enrolments)
+
+hs_cohorts_aug %>%
   ggplot(mapping = aes(x = grade, y = enrolments_diff)) +
   geom_line(aes(group = school_name,
                 colour = region))
@@ -106,4 +111,62 @@ geocode_results <-
   map(schools, ~opencage_forward(placename = ., countrycode = "AU"))
 
 write_rds(geocode_results, "./data/geocode_results.Rds")
+```
+## Merge Geo Data From QLD gov open data
+
+```{r}
+qld_schools <-
+  read_excel("./data/state-and-non-state-school-listing.XLSX",
+             sheet = 2,
+             skip = 10,
+             guess_max = 1500
+             ) %>%
+  clean_names() %>%
+  select(school_name,
+         school_code,
+         federal_electorate,
+         state_electorate,
+         latitude,
+         longitude)
+## check for non matches
+
+hs_cohorts_aug %>%
+  anti_join(qld_schools)
+
+hs_cohorts_aug <-
+  hs_cohorts_aug %>%
+  left_join(qld_schools)
+
+```
+
+That worked a bit better.
+
+## Simple spatial vis
+
+A leaflet map with circles representing schools coloured by proportion in of initial enrolments present in yr 12 cohort.
+
+```{r}
+hs_cohorts_aug_12prop <- 
+  hs_cohorts_aug %>%
+  filter(grade == 12) %>%
+  mutate(prop_12 = ft_enrolments/initial_enrolments) %>%
+  rename(lat = latitude, lng = longitude) %>%
+  mutate(lat = as.numeric(lat), lng = as.numeric(lng))
+
+circle_palette <-
+  colorNumeric(scico(500, palette = "vik"),
+               hs_cohorts_aug_12prop$prop_12,
+               reverse = TRUE)
+
+
+leaflet(data = hs_cohorts_aug_12prop) %>%
+  addTiles() %>%
+  addCircleMarkers(color = ~circle_palette(prop_12),
+                   stroke = FALSE,
+                   fillOpacity = 0.6
+                   ) %>%
+  addLegend("bottomright",
+            pal = circle_palette,
+            values = ~prop_12
+          )
 ```
