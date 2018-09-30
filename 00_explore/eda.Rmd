@@ -5,7 +5,7 @@ library(readxl)
 library(janitor)
 library(skimr)
 library(leaflet)
-library(scico)
+library(plotly)
 ```
 
 ## Read
@@ -25,12 +25,15 @@ The column names have annoying spaces. I'm just looking at secondary schools.
 august_enrollments_hs <-
   august_enrollments %>%
   janitor::clean_names() %>%
-  filter(school_category == "Secondary",
+  filter(school_category %in% c("Secondary", "Combined"),
          school_type != "Special School")
 
+skim(august_enrollments_hs)
+
+table(august_enrollments_hs$school_category)
 ```
 
-## Munge
+## Create Cohorts
 
 ```{r munge}
 august_cohorts_hs <-
@@ -60,7 +63,9 @@ august_enrollments_hs %>%
 
 hs_cohorts_aug <-
   august_cohorts_hs %>%
-  filter(year_level != "Special") %>%
+  filter(!is.na(grade),
+         !(school_type %in% c("Educational Unit","School of Distance Education"))
+         ) %>%
   group_by(cohort, school_name) %>%
   filter(min(collection_year) <=  2014,
          max(grade) == 12,
@@ -95,7 +100,22 @@ hs_cohorts_aug %>%
   ggplot(mapping = aes(x = grade, y = enrolments_diff)) +
   geom_line(aes(group = school_name,
                 colour = region))
+  ggplotly()
 ```
+
+## Outliers
+
+```{r}
+hs_cohorts_aug %>%
+  arrange(desc(enrolments_diff))
+
+hs_cohorts_aug %>%
+  filter(school_type %in% c("Educational Unit","School of Distance Education")) %>%
+  print(n = 50)
+
+
+```
+
 
 ## Geocoding
 
@@ -120,8 +140,8 @@ qld_schools <-
              sheet = 2,
              skip = 10,
              guess_max = 1500
-             ) %
-         n_names() %>%
+             ) %>%
+         clean_names() %>%
   select(school_name,
          school_code,
         federal_electorate,
@@ -154,7 +174,7 @@ hs_cohorts_aug_12prop <-
   mutate(lat = as.numeric(lat), lng = as.numeric(lng))
 
 circle_palette <-
-  colorNumeric(scico(500, palette = "vik"),
+  colorNumeric(palette = "viridis",
                hs_cohorts_aug_12prop$prop_12,
                reverse = TRUE)
 
@@ -180,7 +200,7 @@ hs_cohorts_aug_10prop <-
   mutate(lat = as.numeric(lat), lng = as.numeric(lng))
 
 circle_palette <-
-  colorNumeric(scico(500, palette = "vik"),
+  colorNumeric("viridis",
                hs_cohorts_aug_10prop$prop_10,
                reverse = TRUE)
 
@@ -189,10 +209,16 @@ leaflet(data = hs_cohorts_aug_10prop) %>%
   addTiles() %>%
   addCircleMarkers(color = ~circle_palette(prop_10),
                    stroke = FALSE,
-                   fillOpacity = 0.6
+                   fillOpacity = 0.8
                    ) %>%
   addLegend("bottomright",
             pal = circle_palette,
             values = ~prop_10
           )
+```
+
+## Write data
+
+```{r}
+write_csv(hs_cohorts_aug, "./data/qld_highschool_cohorts_geo.csv")
 ```
