@@ -83,26 +83,28 @@ qld_map <-
             by = c(SED_NAME17 = "state_electorate") ) %>%
   tm_shape() +
   tm_polygons(col = "prop10",
-              palette = "RdBu"
-              ) +
-  tm_style("classic")
+              palette = "plasma"
+              )
+
+qld_map
 
 seq_bbox <-
-  matrix(c(xmin = 152.578125, ymin = -28.134972,
-    xmax = 153.495483,ymax =-26.583615),
-    ncol = 2, byrow = TRUE)
+ st_bbox(c(ymin = -3330667.5393, xmin = 1802106.0528,
+         ymax = -3211413.1917,xmax =1913589.6739),
+         crs = st_crs(3112))
 
-## crs = 3857
+
 
 seq_map <-
   simplified_shapes_qld %>%
   left_join(qld_yr10_cohort_attrition,
             by = c(SED_NAME17 = "state_electorate") ) %>%
-  tm_shape() +
+  tm_shape(bbox = seq_bbox) +
   tm_polygons(col = "prop10",
-              palette = "RdBu"
-              ) +
-  tm_style("classic")
+              palette = "plasma"
+              )
+
+seq_map
 ```
 
 ## Statistical Area 2 Summary
