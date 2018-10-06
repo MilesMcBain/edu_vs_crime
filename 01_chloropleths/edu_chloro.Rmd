@@ -9,6 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(sf)
+library(tmap)
+library(rmapshaper)
 ```
 
 ## Load
@@ -36,6 +38,71 @@ plot(state_shapes)
 
 state_shapes %>%
   head()
+
+```
+
+The shapes are quite detailed, not really needed. Downsample?
+
+```{r}
+## need to transform to use st_simplify
+## doesn't work with lat long data apparently.
+## using http://spatialreference.org/ref/epsg/gda94-geoscience-australia-lambert/
+state_shapes <- st_transform(state_shapes, crs = 3112)
+
+simplified_shapes <- ms_simplify(state_shapes)
+```
+
+Filter down to just QLD electorates.
+
+```{r}
+## filter down to SED_NAME17 in QLD cohort data
+simplified_shapes_qld <-
+  simplified_shapes %>%
+  semi_join(select(qld_cohort, state_electorate),
+            by = c(SED_NAME17 = "state_electorate"))
+
+```
+
+### Summarisation
+
+```{r}
+qld_yr10_cohort_attrition <- 
+  qld_cohort %>%
+  filter(grade == 10) %>%
+  group_by(state_electorate) %>%
+  summarise(prop10 = sum(ft_enrolments) / sum(initial_enrolments))
+
+```
+
+### Visualisation
+
+```{r}
+qld_map <-
+  simplified_shapes_qld %>%
+  left_join(qld_yr10_cohort_attrition,
+            by = c(SED_NAME17 = "state_electorate") ) %>%
+  tm_shape() +
+  tm_polygons(col = "prop10",
+              palette = "RdBu"
+              ) +
+  tm_style("classic")
+
+seq_bbox <-
+  matrix(c(xmin = 152.578125, ymin = -28.134972,
+    xmax = 153.495483,ymax =-26.583615),
+    ncol = 2, byrow = TRUE)
+
+## crs = 3857
+
+seq_map <-
+  simplified_shapes_qld %>%
+  left_join(qld_yr10_cohort_attrition,
+            by = c(SED_NAME17 = "state_electorate") ) %>%
+  tm_shape() +
+  tm_polygons(col = "prop10",
+              palette = "RdBu"
+              ) +
+  tm_style("classic")
 ```
 
 ## Statistical Area 2 Summary

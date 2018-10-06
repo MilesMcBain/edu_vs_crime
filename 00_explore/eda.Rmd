@@ -1,4 +1,11 @@
 
+---
+title: "Exploratory Data Anaylsis of Queensland high school cohort attrition"
+author: "Miles McBain"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
 ```{r dependencies}
 library(tidyverse)
 library(readxl)
@@ -21,6 +28,7 @@ august_enrollments
 The column names have annoying spaces. I'm just looking at secondary schools.
 
 ## Subset
+
 ```{r subset}
 august_enrollments_hs <-
   august_enrollments %>%
