@@ -11,6 +11,7 @@ library(tidyverse)
 library(sf)
 library(tmap)
 library(rmapshaper)
+library(grid)
 ```
 
 ## Load
@@ -77,22 +78,27 @@ qld_yr10_cohort_attrition <-
 ### Visualisation
 
 ```{r}
+seq_bbox <-
+  st_bbox(c(ymin = -3330667.5393, xmin = 1802106.0528,
+            ymax = -3211413.1917,xmax =1913589.6739),
+          crs = st_crs(3112))
+
 qld_map <-
   simplified_shapes_qld %>%
   left_join(qld_yr10_cohort_attrition,
             by = c(SED_NAME17 = "state_electorate") ) %>%
   tm_shape() +
   tm_polygons(col = "prop10",
-              palette = "plasma"
-              )
+              palette = "plasma",
+              title = "2 yr cohort survival"
+              ) +
+  tm_shape(st_as_sfc(seq_bbox)) +
+  tm_borders(col = "black",
+             lwd = 2) +
+  tm_layout(legend.show = TRUE,
+            legend.position = c("left", "top") )
 
 qld_map
-
-seq_bbox <-
- st_bbox(c(ymin = -3330667.5393, xmin = 1802106.0528,
-         ymax = -3211413.1917,xmax =1913589.6739),
-         crs = st_crs(3112))
-
 
 
 seq_map <-
@@ -102,9 +108,11 @@ seq_map <-
   tm_shape(bbox = seq_bbox) +
   tm_polygons(col = "prop10",
               palette = "plasma"
-              )
+              ) +
+  tm_layout(legend.show = FALSE)
 
-seq_map
+qld_map
+print(seq_map, vp = viewport(0.635, 0.83, width = 0.3, height = 0.3))
 ```
 
 ## Statistical Area 2 Summary
